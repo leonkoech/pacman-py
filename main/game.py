@@ -4,8 +4,15 @@
 import pygame
 from player import Player
 from enemies import *
-import tkinter
+from tkinter import *
 from tkinter import messagebox
+import tkinter.messagebox
+import random
+from threading import Thread
+import sched,time
+import sys
+import os
+
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 576
 
@@ -15,11 +22,38 @@ WHITE = (255,255,255)
 BLUE = (0,0,255)
 RED = (255,0,0)
 
+# def check_time(self):
+#     while not check_time.cancelled:
+#         Game.self_replicate(self)
+#         time.sleep(5)
+# check_time.cancelled = False
+
+# t = Thread(target=check_time)
+# t.start()
+
 class Game(object):
+    
+    # this function runs in the background every 30 seconds
+    def self_replicate(self):
+        print('replicate')
+        print(pygame.display.get_init())
+        print(self.game_over)
+        # check if the game has already started
+        if self.game_over == False:
+            for i in self.enemies:
+                # multiply the existing infections
+                self.enemies.add(Infection(i.rect.x,i.rect.y,i.change_x,i.change_y))
+
+
+
+    
+
     def __init__(self):
         self.font = pygame.font.Font(None,40)
         self.about = False
         self.game_over = True
+        self.dead_infection = True
+        self.game_over_screen = False
         # Create the variable for the score
         self.score = 0
         # Create the font for displaying the score on the screen
@@ -42,14 +76,16 @@ class Game(object):
                     self.vertical_blocks.add(Block(j*32+8,i*32+8,BLACK,16,16))
         # Create the enemies
         self.enemies = pygame.sprite.Group()
-        self.enemies.add(Slime(288,96,0,2))
-        self.enemies.add(Slime(288,320,0,-2))
-        self.enemies.add(Slime(544,128,0,2))
-        self.enemies.add(Slime(32,224,0,2))
-        self.enemies.add(Slime(160,64,2,0))
-        self.enemies.add(Slime(448,64,-2,0))
-        self.enemies.add(Slime(640,448,2,0))
-        self.enemies.add(Slime(448,320,2,0))
+        self.enemies.add(Infection(288,96,0,2))
+        self.enemies.add(Infection(288,320,0,-2))
+        self.enemies.add(Infection(544,128,0,2))
+        self.enemies.add(Infection(32,224,0,2))
+        self.enemies.add(Infection(160,64,2,0))
+        self.enemies.add(Infection(448,64,-2,0))
+        self.enemies.add(Infection(640,448,2,0))
+        self.enemies.add(Infection(448,320,2,0))
+
+        
         # Add the dots inside the game
         for i, row in enumerate(enviroment()):
             for j, item in enumerate(row):
@@ -58,8 +94,10 @@ class Game(object):
 
         # Load the sound effects
         self.pacman_sound = pygame.mixer.Sound("pacman_sound.ogg")
+        self.dead_infection_sound = pygame.mixer.Sound("deathinfection.wav")
         self.game_over_sound = pygame.mixer.Sound("game_over_sound.ogg")
 
+       
 
     def process_events(self):
         for event in pygame.event.get(): # User did something
@@ -115,17 +153,46 @@ class Game(object):
     def run_logic(self):
         if not self.game_over:
             self.player.update(self.horizontal_blocks,self.vertical_blocks)
+
+            # dot collision
             block_hit_list = pygame.sprite.spritecollide(self.player,self.dots_group,True)
             # When the block_hit_list contains one sprite that means that player hit a dot
             if len(block_hit_list) > 0:
                 # Here will be the sound effect
                 self.pacman_sound.play()
                 self.score += 1
-            block_hit_list = pygame.sprite.spritecollide(self.player,self.enemies,True)
-            if len(block_hit_list) > 0:
-                self.player.explosion = True
+                if len(self.enemies) == 0:
+                    print("All enemies Destroyed Vaxman!!")
+                    if(len(self.dots_group) == 0):
+                        print("you win")
+                
+               
+            # enemy collision
+            enemy_hit_list = pygame.sprite.spritecollide(self.player,self.enemies,True)
+            # if the number of enemy collisions is greater than 1 destroy enemy
+            # game over if enemy count is greater than 32 times the original number
+            ghost_count= len(self.enemies)
+           
+            if len(enemy_hit_list) > 0:
+              
+                   
+                
+                self.dead_infection_sound.play()
+                
+                if len(self.enemies) == 0:
+                    print("All enemies Destroyed Vaxman!!")
+                    if(len(self.dots_group) == 0):
+                        print("you win")
+                
+            if ghost_count == 8*32:
+                # when ghosts grow to 32 times the original number
+                self.game_over=True
+                self.game_over_screen=True
+               
+                self.enemies.explosion = False
+                
                 self.game_over_sound.play()
-            self.game_over = self.player.game_over
+            # self.game_over=self.player.game_over
             self.enemies.update(self.horizontal_blocks,self.vertical_blocks)
            # tkMessageBox.showinfo("GAME OVER!","Final Score = "+(str)(GAME.score))    
 
@@ -135,12 +202,9 @@ class Game(object):
         # --- Drawing code should go here
         if self.game_over:
             if self.about:
-                self.display_message(screen,"It is an arcade Game")
-                #"a maze containing various dots,\n"
-                #known as Pac-Dots, and four ghosts.\n"
-                #"The four ghosts roam the maze, trying to kill Pac-Man.\n"
-                #"If any of the ghosts hit Pac-Man, he loses a life;\n"
-                #"the game is over.\n")
+                self.display_message(screen,"Vax-man is an arcade game like pacman")
+            elif self.game_over_screen:
+                self.display_message(screen,"GAME OVER! Score: "+str(self.score) )
             else:
                 self.menu.display_frame(screen)
         else:
@@ -161,11 +225,12 @@ class Game(object):
         # --- Go ahead and update the screen with what we've drawn.
         pygame.display.flip()
 
-    def display_message(self,screen,message,color=(255,0,0)):
+    def display_message(self,screen,message,color=(255,255,0)):
         label = self.font.render(message,True,color)
         # Get the width and height of the label
         width = label.get_width()
         height = label.get_height()
+       
         # Determine the position of the label
         posX = (SCREEN_WIDTH /2) - (width /2)
         posY = (SCREEN_HEIGHT /2) - (height /2)

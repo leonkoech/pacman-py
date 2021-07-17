@@ -29,12 +29,12 @@ class Player(pygame.sprite.Sprite):
         # Load explosion image
         img = pygame.image.load("explosion.png").convert()
         self.explosion_animation = Animation(img,30,30)
-        # Save the player image
+        # Save the player image 
         self.player_image = pygame.image.load(filename).convert()
         self.player_image.set_colorkey(BLACK)
 
     def update(self,horizontal_blocks,vertical_blocks):
-        if not self.explosion:
+        
             if self.rect.right < 0:
                 self.rect.left = SCREEN_WIDTH
             elif self.rect.left > SCREEN_WIDTH:
@@ -70,13 +70,7 @@ class Player(pygame.sprite.Sprite):
             elif self.change_y < 0:
                 self.move_up_animation.update(10)
                 self.image = self.move_up_animation.get_current_image()
-        else:
-            if self.explosion_animation.index == self.explosion_animation.get_length() -1:
-                pygame.time.wait(500)
-                self.game_over = True
-            self.explosion_animation.update(12)
-            self.image = self.explosion_animation.get_current_image()
-            
+       
 
     def move_right(self):
         self.change_x = 3
